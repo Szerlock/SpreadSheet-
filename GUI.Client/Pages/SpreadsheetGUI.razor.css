@@ -1,0 +1,110 @@
+﻿/* 
+    Jim Style Code
+    CS 3500
+    Fall 2024
+*/
+
+.SpreadsheetCell
+{
+    width: 250px;
+    width: 150px;
+    max-width: 150px;
+    display: inline-block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.selected
+{
+    border: 2px solid blue;
+}
+
+.table-container
+{
+    overflow-x: auto;
+}
+
+.fixed-header
+{
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: #ffffff !important;
+    border-bottom:2px solid black;
+}
+
+.fixed-column
+{
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background-color: #ffffff !important;
+    border-right: 2px solid black;
+}
+
+.scrollable
+{
+    white-space: nowrap; /* Ensures no line breaks within cells */
+    width: 1000px;
+    height: 500px;
+    margin: -1px;
+}
+
+#toolbar
+{
+    display: inline-block;
+    border: 5px solid black;
+    overflow:hidden;
+    margin:5px;
+    padding: 5px;
+}
+
+#RowColDisplay
+{
+    width:50px;
+    text-align:center;
+    border:0px;
+}
+
+#FormulaValue
+{
+    color:darkblue;
+    overflow-x: auto;
+}
+
+#FormulaContent
+{
+    width:450px;
+}
+
+#FileHandlers
+{
+    margin: 20px;
+}
+
+#FileHandlers input
+{
+    margin: 10px;
+}
+
+.upload-container
+{
+    position: relative; /* Needed for label positioning */
+    display: inline-block; /* Allow custom styling */
+}
+
+.custom-input
+{
+    display: none; /* Hide the default input */
+}
+
+#hideUglyWidget
+{
+    display:none;
+}
+
+#FileMenu
+{
+    border: 1px solid black;
+    margin-top: 10px;
+}

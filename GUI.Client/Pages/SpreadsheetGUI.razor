@@ -1,0 +1,382 @@
+﻿    @page "/spreadsheet"
+    @rendermode InteractiveAuto
+    @inject IJSRuntime JS  // <remarks> Allows the "communication"/use of javascript </remarks>
+    @inject NavigationManager Navigator
+
+    @namespace SpreadsheetNS  
+
+    @using System.Diagnostics
+
+    <NavigationLock ConfirmExternalNavigation="true"
+                    OnBeforeInternalNavigation="OnBeforeLeavePage" />
+
+    <PageTitle>SpreadSheet</PageTitle>
+
+    <h1>Simple SpreadSheet GUI @(false ? "*" : "")</h1>
+
+    @* <remarks> Example of how to have two pages or an "alert" GUI. </remarks> *@
+    @if (SaveGUIView)
+    {
+        <label for="SavefileName">Name:</label>
+        <input id="SaveFileName" @bind="SaveFileName" type="text">
+
+        <br/>
+
+        <button class="btn btn-primary" @onclick="HandleSaveFile">Save</button>
+        <button class="btn btn-primary" @onclick="() => ShowHideSaveGUI(false)">Cancel</button>
+    }
+    else
+    {
+        <div id="toolbar">
+            <div>
+                <label for="FormulaContent">Content:</label>
+            </div>          
+                <input name="FormulaContent" id="FormulaContent" @ref="FormulaContentEditableInput" value="@InputWidgetBackingStore" @onchange="ChangeSpreadsheetCellValue" />
+            <div>
+                <label for="FormulaValue">Value:</label>
+                <input name="FormulaValue" id="FormulaValue" value="@WidgetValue" @onchange="ChangeSpreadsheetCellValue" disabled />
+            </div>
+            <div>
+                <label for="VarName">@cellName</label>
+            </div>
+        </div>
+
+        <div class="container" style="cursor: pointer;">
+            <div class="table-container">
+                <div class="scrollable">
+                <table class="table table-bordered" @onkeydown="(e) => HandleKeyDown(e, currentRow, currentCol)">
+                        <thead>
+                            <tr class="fixed-header">
+                                <th scope="col">&nbsp;</th>
+                                @for ( int col = 0; col < colSize; col++ )
+                                {
+                                    <th scope="col">@Alphabet[col]</th>
+                                }
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @for ( int row = 0; row < rowSize; row++ )
+                            {
+                                <tr style="padding:0px !important;">
+                                    <th style="padding:0px !important;" scope="row" class="fixed-column">@(row + 1)</th>
+                                    @for ( int col = 0; col < colSize; col++ )
+                                    {
+                                        int r = row;
+                                        int c = col;
+                                        <td class="@CellsClassBackingStore[r,c]"  @onclick="() => FocusMainInput(r,c)">
+                                        @if (row == currentRow && col == currentCol)
+                                        {
+                                            <input type="text"
+                                             class="SpreadsheetCell"
+                                             @ref="CellTextEditableInput[currentRow, currentCol]"
+                                             value="@CellTextBackingStore[currentRow, currentCol]"
+                                             @onchange="ChangeSpreadsheetCellValue"
+                                             title="@CellsBackingStore[r, c]" />
+                                        }
+                                        else
+                                        {
+                                            <span title="@CellsBackingStore[r, c] " class="SpreadsheetCell">@CellsBackingStore[r, c]</span>
+                                        }
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="FileMenu">
+            <h2>File Menu</h2>
+            <div id="FileHandlers">
+                <button class="btn btn-primary" @onclick="HandleClear">Clear</button>
+                <button class="btn btn-primary" @onclick="() => ShowHideSaveGUI(true)">Save</button>
+                <div id="hideUglyWidget">
+                    <InputFile id="inputwidget" name="abc" class="custom-input" type="file" OnChange="HandleLoadFile" />
+                </div>
+                <label for="inputwidget" class="btn btn-primary">Load</label>
+                <br/>
+
+                <label for="RowsInput"> Number of Rows: </label>
+                <input name="RowsInput" id="RowsInput" min="1" max="99" @onchange="ExtendRows" />
+                <label for="ColsInput"> Number of Cols: </label>
+                <input name="ColsInput" id="ColsInput" min="1" max="26" @onchange="ExtendColumns" />
+
+                <div>
+                    <span id="messageLabel"> @rowColErrorMsg</span>
+                </div>
+            </div>
+        </div>
+    }
+
+    @code
+    {
+    // <remark> 
+    //   The code in this section should be 100% GUI related.  Otherwise
+    //   place the code in the .cs file.
+    // </remark>
+
+    /// <summary>
+    ///   Direct reference to the html element (so we can focus it).
+    /// </summary>
+    private ElementReference FormulaContentEditableInput;
+
+    /// <summary>
+    ///  Direct reference to the html element for the input text of a cell
+    /// </summary>
+    private ElementReference[,] CellTextEditableInput = new ElementReference[99, 26];
+
+    /// <summary>
+    ///   The value of the main input widget where users type
+    ///   their formulas and numbers and strings.
+    /// </summary>
+    private string InputWidgetBackingStore = "";
+
+    /// <summary>
+    ///  This backing store of the literal contents of a cell for a text input box
+    /// </summary>
+    private string[,] CellTextBackingStore { get; set; } = new string[99, 26];
+
+    /// <summary>
+    ///   The name of the file that we want to download to.
+    /// </summary>
+    private string SaveFileName = "Spreadsheet.sprd";
+
+    /// <summary>
+    /// The value of a given cell stored for display
+    /// </summary>
+    private string  WidgetValue = "";
+
+    /// <summary>
+    /// The row that the cell is highlighted on
+    /// </summary>
+    private int currentRow = 0;
+
+    /// <summary>
+    /// The column that the cell is highlighted on
+    /// </summary>
+    private int currentCol = 0;
+
+    /// <summary>
+    ///  The number of rows present in spreadsheet (10 is default)
+    /// </summary>
+    private int rowSize = 10;
+
+    /// <summary>
+    /// The number of rows present in spreadsheet (10 is default)
+    /// </summary>
+    private int colSize = 10;
+
+    /// <summary>
+    /// The name of the cell that is displayed when highlighted
+    /// </summary>
+    private string cellName = "";
+
+    /// <summary>
+    /// An error message indicating when the rows or columns are invalid
+    /// </summary>
+    private string rowColErrorMsg = "";
+
+    /// <summary>
+    ///   When a cell is clicked on, put the focus on the main
+    ///   widget and update the toolbar.
+    /// </summary>
+    /// <param name="row"></param>
+    /// <param name="col"></param>
+    private async void FocusMainInput( int row, int col )
+    {
+        cellName = CellNameFromRowCol(row, col);
+        currentRow = row;
+        currentCol = col;
+
+        // Update all the values on the specific cell, and update the toolbar
+        WidgetValue = spreadSheet.GetCellValue(CellNameFromRowCol(row, col)).ToString() ?? string.Empty;
+        ToolBarCellContents = HandleCellChange(row, col);
+
+        UpdateToolbar();
+        HighlightCell(row, col);
+
+        await Task.Delay(50);
+        await  CellTextEditableInput[row, col].FocusAsync(); // <remarks> move focus back to input widget. </remarks>
+    }
+
+    /// <summary>
+    ///   Make the value and content display/input of the tool bar match the
+    ///   spreadsheet.
+    /// </summary>
+    private void UpdateToolbar()
+    {
+        InputWidgetBackingStore = HandleCellChange(currentRow, currentCol);
+        StateHasChanged();
+    }
+
+    /// <summary>
+    ///   Outline the current cell. erase outlines from everyone else.
+    /// </summary>
+    /// <param name="theRow">the cell's row.</param>
+    /// <param name="theCol">the cell's col.</param>
+    private void HighlightCell(int theRow, int theCol)
+    {
+        for (int row=0;row<rowSize;row++)
+        {
+            for (int col=0;col<colSize;col++)
+            {
+                CellsClassBackingStore[row, col] = string.Empty;
+            }
+        }
+
+        CellsClassBackingStore[theRow, theCol] = "selected";
+
+        // Show the current value of the cell onto the spreadsheet itself
+        for (int i = 0; i < rowSize; i++)
+        {
+            for (int j = 0; j < colSize; j++)
+            {
+                CellsBackingStore[i, j] = spreadSheet.GetCellValue(CellNameFromRowCol(i, j)).ToString() ?? string.Empty;
+            }
+        }
+    }
+
+    /// <summary>
+    ///   When the header widget for cell contents is changed, update
+    ///   the spreadsheet.
+    /// </summary>
+    /// <param name="eventArgs"></param>
+    private void ChangeSpreadsheetCellValue( ChangeEventArgs eventArgs )
+    {
+        // Store the row and column for use throughout program
+        int row = currentRow;
+        int col = currentCol;
+
+        string newInput = eventArgs.Value?.ToString() ?? "oops";
+        InputWidgetBackingStore = newInput;
+        CellTextBackingStore[currentRow, currentCol] = newInput;
+
+        // Calculate and update all relevant cells in spreadsheet
+        HandleUpdateCellInSpreadsheet( newInput, row, col );
+
+        UpdateToolbar();
+
+        CellsBackingStore[row, col] = spreadSheet.GetCellValue(CellNameFromRowCol(row, col)).ToString() ?? string.Empty;
+    }
+
+    /// <summary>
+    ///   What to do before the browser is allowed to leave the page.
+    /// </summary>
+    /// <param name="context"></param>
+    /// <returns></returns>
+    private async Task OnBeforeLeavePage( LocationChangingContext context )
+    {
+        if ( spreadSheet.Changed )
+        {
+            var isConfirmed = await JS.InvokeAsync<bool>(
+                "confirm",
+                "Are you sure you want to navigate away?");
+
+            if (!isConfirmed)
+            {
+                context.PreventNavigation();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Method that changes the number of rows in the spreadsheet
+    /// </summary>
+    /// <param name="eventArgs"></param>
+    private void ExtendRows(ChangeEventArgs eventArgs)
+    {
+        // Take in user input on setting the number of rows
+        if (!int.TryParse(eventArgs.Value?.ToString(), out rowSize))
+        {
+            rowSize = 10;
+        }
+
+        // Make sure that the number of rows is valid
+        if(rowSize > 99)
+        {
+            rowSize = 99;
+            rowColErrorMsg = "Rows Exceed limit, setting rows to 99";
+        }
+        else if (rowSize < 1)
+        {
+            rowSize = 1;
+            rowColErrorMsg = "Rows cannot be less than 1, setting rows to 1";
+        }
+        else 
+        {
+            rowColErrorMsg = "";
+        }
+    }
+
+    /// <summary>
+    /// Method that changes the number of columns in the spreadsheet
+    /// </summary>
+    /// <param name="eventArgs"></param>
+    private void ExtendColumns(ChangeEventArgs eventArgs)
+    {
+        // Take in user input on setting the number of columns
+        if (!int.TryParse(eventArgs.Value?.ToString(), out colSize))
+        {
+            colSize = 10;
+        }
+        
+        // Make sure that the number of columns is valid
+        if(colSize > 26)
+        {
+            colSize = 26;
+            rowColErrorMsg = "Columns exceed limit, setting columns to 26";
+        }
+        else if (colSize < 1) 
+        {
+            colSize = 1;
+            rowColErrorMsg = "Columns cannot be less than 1, setting columns to 1";
+        }
+        else
+        {
+            rowColErrorMsg = "";
+        }
+    }
+
+    /// <summary>
+    /// This method handles the behavior of moving through the spreadsheet using the arrow keys.
+    /// </summary>
+    /// <param name="e"></param>
+    /// <param name="row"> the current row. </param>
+    /// <param name="col"> the current column. </param>
+    private void HandleKeyDown(KeyboardEventArgs e, int row, int col)
+    {
+        switch (e.Key)
+        {
+            // move to different cells based on arrow key input
+            case "ArrowUp":
+            if (row > 0)
+                FocusMainInput(row - 1, col);
+                StateHasChanged();
+                break;
+
+            case "ArrowDown":
+            if (row < rowSize - 1)
+                FocusMainInput(row + 1, col);
+                StateHasChanged();
+                break;
+
+            case "ArrowLeft":
+            if (col > 0)
+                FocusMainInput(row, col - 1);
+                StateHasChanged();
+                break;
+
+            case "ArrowRight":
+            if (col < colSize - 1)
+                FocusMainInput(row, col + 1);
+                StateHasChanged();
+                break;
+
+            default:
+                break;
+            }
+        }
+    }

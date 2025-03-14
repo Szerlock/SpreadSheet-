@@ -1,0 +1,30 @@
+﻿@page "/"
+
+<PageTitle>CS 3500 - SpreadSheet Home</PageTitle>
+
+<h1>CS 3500 - Spreadsheet GUI in Blazor!</h1>
+
+<p> Click on the spreadsheet nav link to access the spreadsheet!</p>
+
+<h2> - Spreadsheet Features and Functions -</h2>
+
+<p> Our spreadsheet has the basic functionalities as defined by the requirements for this assignment. A new feature that was added for this GUI, is the ability 
+    to edit inside of the cell itself. By double-clicking on the cell, and entering your value, it will be saved to that cell and updated appropriately. We still have 
+    retained the option for the user to either enter via the text box at the top or in the cell directly. For our case, all formula errors will be displayed as errors in general, and it is up
+    to the user to determine their error.
+</p>
+
+<p> Another feature that was implemented was being able to move through the spreadsheet's cells via the arrow keys. By first clicking on a cell, then using the arrow keys, you can navigate through each
+    of the cells, and ontop of the old feature, you can now modify the cells as well. Make sure to press the ENTER key everytime you try to input a value when modifying the cell 
+    with arrow keys, to lock it in.
+</p>
+
+<p> Some small things to note is that our rows and columns are limited to 99x26 at a maximum, and 1x1 at a minimum. An error message will display if any entry is out of these bounds.
+    The number of cells will then set to the max or min, depending on which bound was broken respectively. Content data will always be saved in the contents menu, allowing the user
+    to edit it at any time, and the value of a spreadsheet will always be displayed to a user. Our value and cell name blocks are read only. Errors will be displayed in the cell, and 
+    will update anytime an error occurs, and goes away once fixed. Clearing will clear instantly and you will return to the last cell that you entered in.
+</p>
+
+<environment names="Development">
+    <script src="_framework/aspnetcore-browser-refresh.js"></script>
+</environment>
